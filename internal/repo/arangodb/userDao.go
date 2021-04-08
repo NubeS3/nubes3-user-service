@@ -6,10 +6,12 @@ import (
 	"github.com/Nubes3/nubes3-user-service/pkg/utils"
 	"github.com/arangodb/go-driver"
 	scrypt "github.com/elithrar/simple-scrypt"
+	"github.com/thanhpk/randstr"
+	"strings"
 	"time"
 )
 
-func SaveUser(
+func CreateUser(
 	firstname string,
 	lastname string,
 	username string,
@@ -25,28 +27,46 @@ func SaveUser(
 		return nil, err
 	}
 
+	otp := utils.GenerateOtp()
+
 	doc := models.User{
-		Firstname: firstname,
-		Lastname:  lastname,
-		Username:  username,
-		Pass:      string(passwordHashed),
-		Email:     email,
-		Dob:       dob,
-		Company:   company,
-		Gender:    gender,
-		IsActive:  false,
-		IsBanned:  false,
-		CreatedAt: createdTime,
-		UpdatedAt: createdTime,
+		Firstname:    firstname,
+		Lastname:     lastname,
+		Username:     username,
+		Pass:         string(passwordHashed),
+		Email:        email,
+		Dob:          dob,
+		Company:      company,
+		Gender:       gender,
+		IsActive:     false,
+		RefreshToken: strings.ToUpper(randstr.Hex(8)),
+		Otp:          otp,
+		IsBanned:     false,
+		CreatedAt:    createdTime,
+		UpdatedAt:    createdTime,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
 	defer cancel()
 
-	user, _ := FindUserByUsername(username)
-	if user != nil {
+	usernameDup, emailDup, err := isUserDuplicate(username, email)
+	if err != nil {
 		return nil, &utils.ModelError{
-			Msg:     "duplicated username",
+			Msg:     err.Error(),
+			ErrType: utils.DbError,
+		}
+	}
+
+	if usernameDup {
+		return nil, &utils.ModelError{
+			Msg:     "username duplicate",
+			ErrType: utils.Duplicated,
+		}
+	}
+
+	if emailDup {
+		return nil, &utils.ModelError{
+			Msg:     "email duplicate",
 			ErrType: utils.Duplicated,
 		}
 	}
@@ -340,6 +360,128 @@ func UpdateUserPassword(uid string, password string) (*models.User, error) {
 	return &user, err
 }
 
+func UpdateOtp(username string) (*models.User, error) {
+	otp := utils.GenerateOtp()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
+	defer cancel()
+
+	query := "FOR u IN users FILTER u.username == @username LIMIT 1 " +
+		"UPDATE u WITH { otp: @otp } IN users RETURN NEW"
+	bindVars := map[string]interface{}{
+		"otp":      otp,
+		"username": username,
+	}
+
+	user := models.User{}
+	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	if err != nil {
+		return nil, &utils.ModelError{
+			Msg:     "not found",
+			ErrType: utils.NotFound,
+		}
+	}
+	defer cursor.Close()
+
+	for {
+		meta, err := cursor.ReadDocument(ctx, &user)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		} else if err != nil {
+			return nil, &utils.ModelError{
+				Msg:     "not found",
+				ErrType: utils.NotFound,
+			}
+		}
+		user.Id = meta.Key
+	}
+
+	return &user, nil
+}
+
+func ConfirmOtp(username, otp string) (*models.User, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
+	defer cancel()
+
+	query := "FOR u IN users FILTER u.username == @username AND u.otp.otp == @otpVal AND u.otp.expired < @deadline LIMIT 1 " +
+		"UPDATE u WITH { otp: null } IN users RETURN NEW"
+	bindVars := map[string]interface{}{
+		"username": username,
+		"otpVal":   otp,
+		"deadline": time.Now(),
+	}
+
+	user := models.User{}
+	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	if err != nil {
+		return nil, &utils.ModelError{
+			Msg:     err.Error(),
+			ErrType: utils.DbError,
+		}
+	}
+	defer cursor.Close()
+
+	for {
+		meta, err := cursor.ReadDocument(ctx, &user)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		} else if err != nil {
+			return nil, &utils.ModelError{
+				Msg:     err.Error(),
+				ErrType: utils.DbError,
+			}
+		}
+		user.Id = meta.Key
+	}
+
+	if user.Id == "" {
+		return nil, &utils.ModelError{
+			Msg:     "otp expired or mismatched",
+			ErrType: utils.NotFound,
+		}
+	}
+
+	return &user, nil
+}
+
+func UpdateRefreshToken(uid string) (*models.User, error) {
+	newRefreshToken := strings.ToUpper(randstr.Hex(8))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
+	defer cancel()
+
+	query := "FOR u IN users FILTER u._key == @uid LIMIT 1 " +
+		"UPDATE u WITH { refresh_token: @rf } IN users RETURN NEW"
+	bindVars := map[string]interface{}{
+		"uid": uid,
+		"rf":  newRefreshToken,
+	}
+
+	user := models.User{}
+	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	if err != nil {
+		return nil, &utils.ModelError{
+			Msg:     "not found",
+			ErrType: utils.NotFound,
+		}
+	}
+	defer cursor.Close()
+
+	for {
+		meta, err := cursor.ReadDocument(ctx, &user)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		} else if err != nil {
+			return nil, &utils.ModelError{
+				Msg:     "not found",
+				ErrType: utils.NotFound,
+			}
+		}
+		user.Id = meta.Key
+	}
+
+	return &user, nil
+}
+
 func UpdateBanStatus(uid string, isBan bool) (*models.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
 	defer cancel()
@@ -387,4 +529,57 @@ func RemoveUser(uid string) error {
 	}
 
 	return nil
+}
+
+func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
+	defer cancel()
+
+	query := "FOR u IN users FILTER u.username == @username OR u.email == @email LIMIT 1 RETURN u"
+	bindVars := map[string]interface{}{
+		"email":    email,
+		"username": username,
+	}
+
+	user := models.User{}
+	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	if err != nil {
+		usernameDup = false
+		emailDup = false
+		err = &utils.ModelError{
+			Msg:     err.Error(),
+			ErrType: utils.DbError,
+		}
+		return
+	}
+	defer cursor.Close()
+
+	for {
+		meta, err := cursor.ReadDocument(ctx, &user)
+		if driver.IsNoMoreDocuments(err) {
+			break
+		} else if err != nil {
+			usernameDup = false
+			emailDup = false
+			err = &utils.ModelError{
+				Msg:     err.Error(),
+				ErrType: utils.DbError,
+			}
+			return
+		}
+		user.Id = meta.Key
+	}
+
+	if user.Id != "" {
+		if user.Email == email {
+			emailDup = true
+		}
+		if user.Username == username {
+			usernameDup = true
+		}
+		err = nil
+		return
+	}
+
+	return false, false, nil
 }

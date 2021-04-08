@@ -6,6 +6,7 @@ type Config struct {
 	ArangoHost     string `json:"arango_host"`
 	ArangoUser     string `json:"arango_user"`
 	ArangoPassword string `json:"arango_password"`
+	Secret         string `json:"secret"`
 }
 
 var Conf Config
