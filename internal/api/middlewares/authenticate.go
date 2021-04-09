@@ -1,8 +1,8 @@
 package middlewares
 
 import (
+	"github.com/Nubes3/common/utils"
 	"github.com/Nubes3/nubes3-user-service/internal/repo/arangodb"
-	"github.com/Nubes3/nubes3-user-service/pkg/utils"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"net/http"

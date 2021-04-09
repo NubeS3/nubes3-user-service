@@ -1,10 +1,10 @@
 package rest_api
 
 import (
+	models "github.com/Nubes3/common/models/arangodb"
+	"github.com/Nubes3/common/utils"
 	"github.com/Nubes3/nubes3-user-service/internal/api/middlewares"
 	"github.com/Nubes3/nubes3-user-service/internal/repo/arangodb"
-	"github.com/Nubes3/nubes3-user-service/pkg/models"
-	"github.com/Nubes3/nubes3-user-service/pkg/utils"
 	scrypt "github.com/elithrar/simple-scrypt"
 	"github.com/gin-gonic/gin"
 	"net/http"

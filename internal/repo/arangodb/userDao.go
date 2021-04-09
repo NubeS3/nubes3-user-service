@@ -2,8 +2,8 @@ package arangodb
 
 import (
 	"context"
-	models "github.com/Nubes3/nubes3-user-service/pkg/models"
-	"github.com/Nubes3/nubes3-user-service/pkg/utils"
+	models "github.com/Nubes3/common/models/arangodb"
+	"github.com/Nubes3/common/utils"
 	"github.com/arangodb/go-driver"
 	scrypt "github.com/elithrar/simple-scrypt"
 	"github.com/thanhpk/randstr"
@@ -136,7 +136,7 @@ func FindUserByUsername(uname string) (*models.User, error) {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func FindUserByEmail(mail string) (*models.User, error) {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, &utils.ModelError{
 			Msg:     err.Error(),
@@ -234,7 +234,7 @@ func UpdateUserData(
 		"updatedAt": updatedTime,
 	}
 
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, &utils.ModelError{
 			Msg:     err.Error(),
@@ -284,7 +284,7 @@ func UpdateActive(uname string, isActive bool) error {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func UpdateOtp(username string) (*models.User, error) {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, &utils.ModelError{
 			Msg:     "not found",
@@ -411,7 +411,7 @@ func ConfirmOtp(username, otp string) (*models.User, error) {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, &utils.ModelError{
 			Msg:     err.Error(),
@@ -457,7 +457,7 @@ func UpdateRefreshToken(uid string) (*models.User, error) {
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		return nil, &utils.ModelError{
 			Msg:     "not found",
@@ -542,7 +542,7 @@ func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, e
 	}
 
 	user := models.User{}
-	cursor, err := arangoDb.Query(ctx, query, bindVars)
+	cursor, err := models.ArangoDb.Query(ctx, query, bindVars)
 	if err != nil {
 		usernameDup = false
 		emailDup = false
