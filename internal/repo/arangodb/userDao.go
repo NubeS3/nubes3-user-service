@@ -531,7 +531,7 @@ func RemoveUser(uid string) error {
 	return nil
 }
 
-func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, err error) {
+func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, error error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*ContextExpiredTime)
 	defer cancel()
 
@@ -546,7 +546,7 @@ func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, e
 	if err != nil {
 		usernameDup = false
 		emailDup = false
-		err = &utils.ModelError{
+		error = &utils.ModelError{
 			Msg:     err.Error(),
 			ErrType: utils.DbError,
 		}
@@ -561,7 +561,7 @@ func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, e
 		} else if err != nil {
 			usernameDup = false
 			emailDup = false
-			err = &utils.ModelError{
+			error = &utils.ModelError{
 				Msg:     err.Error(),
 				ErrType: utils.DbError,
 			}
@@ -577,7 +577,7 @@ func isUserDuplicate(username, email string) (usernameDup bool, emailDup bool, e
 		if user.Username == username {
 			usernameDup = true
 		}
-		err = nil
+		error = nil
 		return
 	}
 

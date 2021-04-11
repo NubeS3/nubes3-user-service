@@ -13,7 +13,7 @@ var (
 	userCol arangoDriver.Collection
 )
 
-func init() {
+func InitArangoRepo() {
 	ctx, cancel := context.WithTimeout(context.Background(), ContextExpiredTime*time.Second)
 	defer cancel()
 
