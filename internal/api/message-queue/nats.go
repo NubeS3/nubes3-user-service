@@ -36,6 +36,8 @@ func CreateMessageSubcribe() (func(), error) {
 				}
 
 				response.Data = string(jsonData)
+				resJson, _ := json.Marshal(response)
+				_ = msg.Respond(resJson)
 				return
 			}
 
