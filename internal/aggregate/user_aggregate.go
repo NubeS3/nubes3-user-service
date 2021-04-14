@@ -246,6 +246,8 @@ func UserMessageRequestHandler(msg *n.Msg) {
 			}
 
 			response.Data = string(jsonData)
+			resJson, _ := json.Marshal(response)
+			_ = msg.Respond(resJson)
 			return
 		}
 
